@@ -1,10 +1,8 @@
 /*
- * File: Breakout.java
+ * File: Breakout_extended.java
  * -------------------
- * Name:
- * Section Leader:
  * 
- * This file will eventually implement the game of Breakout.
+ * Extended version of Breakout game.
  */
 
 import acm.graphics.*;
@@ -15,7 +13,7 @@ import java.applet.*;
 import java.awt.*;
 import java.awt.event.*;
 
-public class Breakout extends GraphicsProgram {
+public class Breakout_extended extends GraphicsProgram {
 
 /** Width and height of application window in pixels */
 	public static final int APPLICATION_WIDTH = 400;
@@ -73,7 +71,9 @@ public class Breakout extends GraphicsProgram {
 /** Sets up the bricks and the paddle */ 
 	private void setUp(){
 		addBricks();
-		createPaddle();				
+		createPaddle();	
+		scoreLabel = score(0);
+		add(scoreLabel);
 	}
 	
 /* Method: addBricks() */	
@@ -168,10 +168,17 @@ public class Breakout extends GraphicsProgram {
 
 /* Method: play() */
 /** Creates the ball and moves it around until it is terminated */
-	private void play(){		
-		createBall();
+	private void play(){
+		/* Asks user to click to start the game */
+		GLabel click = createMessage("Click to play");
+		add(click);
+		waitForClick();
+		remove(click);
+		
+		createBall();		
 		playBall();
 	}
+	
 
 /* Method: createBall() */
 /** Creates the ball and sets it in the middle of the window */ 
@@ -182,20 +189,21 @@ public class Breakout extends GraphicsProgram {
 	}
 
 /* Method: playBall() */
-/** Moves the ball around the window until the game is won or lost */ 
+/** Moves the ball around the window until the game is won or lost */  
 	private void playBall(){
 		/* sets the initial velocity of the ball */
 		vy = 4.5;
 		vx = rgen.nextDouble(1.0, 3.0);
 		if (rgen.nextBoolean(0.5)) vx = -vx;
-		
+				
 		while(true){
 			moveBall();
 			checkForCollision();
-
+			
 			/* check if there are no more bricks and display winning message */
 			if (numberOfBricks == 0){
 				add(createMessage("You Won!"));
+				turns = 0;
 				break;
 			}
 			
@@ -208,6 +216,7 @@ public class Breakout extends GraphicsProgram {
 				else {
 					pause(200);
 					remove(ball);
+					paddleHits = 0;
 				}
 				break;
 			}
@@ -227,11 +236,44 @@ public class Breakout extends GraphicsProgram {
 		GObject collider = getCollidingObject();
 		if (collider != null){
 			vy = -(vy);
+			bounceClip.play();
+			
+			if (collider == paddle){
+				/* check if the ball collides with padlle on the edge and changes the velocity x 8 */
+				if (vx < 0 && getElementAt(ball.getX()+2*BALL_RADIUS, ball.getY()+2*BALL_RADIUS) == null)
+					vx = -(vx);
+				if (vx > 0 && getElementAt(ball.getX(), ball.getY()+2*BALL_RADIUS) == null)
+					vx = -(vx);		
+				
+				/* accelerates the velocity of ball on the seventh time it hits the paddle */
+				paddleHits++;
+				if (paddleHits == 7)
+					vy *= 2;
+			}
+			
 			if (collider != paddle){
+				/* set number of points according to the color of the brick hit */
+				Color c = collider.getColor();
+				if (c == Color.CYAN || c == Color.GREEN)
+					points = 5;
+				else if (c == Color.YELLOW || c == Color.ORANGE)
+					points = 10;
+				else 
+					points = 15;
+				
+				/* update score */
+				remove(scoreLabel);
+				scoreLabel = score(points);
+				add(scoreLabel);
+				
+				/*removes brick hit */
 				remove(collider);
 				numberOfBricks--;
+				
 			}
 		}	
+		
+		/* checks if the ball collides with wall */
 		if (ball.getY() < 0)
 			vy = -(vy);
 		if (ball.getX() <= 0 || ball.getX()+2*BALL_RADIUS >= WIDTH)
@@ -257,8 +299,16 @@ public class Breakout extends GraphicsProgram {
 /** Creates message on the screen for the player */
 	private GLabel createMessage(String message){
 		GLabel label = new GLabel(message);
-		label.setFont("SansSerif-24");
+		label.setFont("SansSerif-22");
 		label.setLocation((WIDTH-label.getWidth())/2, (HEIGHT+label.getHeight())/2);
+		return label;
+	}
+
+/* Method: score() */
+/** Sets score on the screen */	
+	private GLabel score(int p){
+		score += p;
+		GLabel label = new GLabel("score: " + score, 20, getHeight()-10);
 		return label;
 	}
 	
@@ -270,4 +320,9 @@ public class Breakout extends GraphicsProgram {
 	private RandomGenerator rgen = RandomGenerator.getInstance();
 	private int numberOfBricks = NBRICK_ROWS * NBRICKS_PER_ROW;
 	private int turns = NTURNS;
+	private int paddleHits = 0;
+	private GLabel scoreLabel;
+	private int score = 0;
+	private int points;		/* number of points for one brick hit */ 
+	AudioClip bounceClip = MediaTools.loadAudioClip("bounce.au"); /* loads the sound for bouncing ball */ 
 }
